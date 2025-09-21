@@ -1,0 +1,56 @@
+{
+  "sample_meetings": [
+    {
+      "title": "Q4 Budget Planning Meeting",
+      "transcript": "John: Good morning everyone. We need to finalize our Q4 budget by Friday. Sarah, can you prepare the financial projections? Sarah: Absolutely, I'll have the projections ready by Wednesday. Mike: What about the marketing budget? We discussed increasing it by 15%. John: Yes, that's approved. Lisa, can you coordinate with the marketing team? Lisa: I'll schedule a meeting with them tomorrow. Mike: Should we also discuss the hiring freeze? John: Let's table that for next week's meeting. Sarah: I'll send out the budget summary by Thursday. John: Perfect. Any other items? No? Great, let's wrap up.",
+      "participants": ["John", "Sarah", "Mike", "Lisa"],
+      "meeting_type": "budget",
+      "duration": 45
+    },
+    {
+      "title": "Sprint Planning Session",
+      "transcript": "Alice: Welcome to our sprint planning. We have 3 major features to complete this sprint. Bob: The user authentication feature is ready for development. Carol: I'll start on the payment integration. Dave: What about the mobile app updates? Alice: Those are lower priority. Bob: I need help with the database migration. Carol: I can assist with that. Dave: When do we need to have everything ready? Alice: End of next week. Bob: That's tight but doable. Carol: I'll create the task breakdown. Dave: I'll update the project timeline. Alice: Great, let's sync up daily.",
+      "participants": ["Alice", "Bob", "Carol", "Dave"],
+      "meeting_type": "planning",
+      "duration": 60
+    },
+    {
+      "title": "Client Check-in Call",
+      "transcript": "Sarah: Hi Mr. Johnson, thanks for joining us today. How are things going with the new system? Mr. Johnson: It's working well, but we're having some issues with the reporting feature. Mike: I can look into that. What specific problems are you seeing? Mr. Johnson: The reports are taking too long to generate. Mike: I'll optimize the queries. Sarah: Is there anything else we can help with? Mr. Johnson: The dashboard could use some improvements. Sarah: I'll add that to our roadmap. Mike: I'll send you an update by Friday. Mr. Johnson: Perfect, thank you both.",
+      "participants": ["Sarah", "Mike", "Mr. Johnson"],
+      "meeting_type": "client",
+      "duration": 30
+    }
+  ],
+  "expected_outputs": {
+    "budget_meeting": {
+      "summary": "Q4 budget planning meeting focused on finalizing financial projections, approving 15% marketing budget increase, and coordinating team tasks for Thursday delivery.",
+      "action_items": [
+        {
+          "task": "Prepare Q4 financial projections",
+          "assignee": "Sarah",
+          "due_date": "Wednesday",
+          "priority": "high"
+        },
+        {
+          "task": "Coordinate with marketing team on budget increase",
+          "assignee": "Lisa",
+          "due_date": "Tomorrow",
+          "priority": "medium"
+        },
+        {
+          "task": "Send budget summary to team",
+          "assignee": "Sarah",
+          "due_date": "Thursday",
+          "priority": "medium"
+        }
+      ],
+      "health_score": 8.5,
+      "key_insights": [
+        "Budget approval process is streamlined",
+        "Team coordination is effective",
+        "Clear deadlines established"
+      ]
+    }
+  }
+}

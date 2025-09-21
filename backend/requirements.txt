@@ -1,0 +1,25 @@
+# Core FastAPI dependencies
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+
+# AI/ML libraries (World-Class Models)
+transformers
+torch
+nltk
+sentence-transformers
+scikit-learn
+numpy
+
+# Database
+sqlalchemy
+psycopg2-binary
+
+# Environment & Config
+python-dotenv
+
+# Testing
+pytest
+pytest-asyncio
+httpx
