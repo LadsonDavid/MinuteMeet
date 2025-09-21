@@ -10,8 +10,8 @@ import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { LoadingSpinner, ProcessingAnimation } from './LoadingSpinner'
 import { ErrorBoundary } from './ErrorBoundary'
-import { ApiService, MeetingData } from '@/lib/api'
-import { formatTime } from '@/lib/utils'
+import { ApiService, MeetingData } from '../lib/api'
+import { formatTime } from '../lib/utils'
 import { 
   Loader2, 
   Upload, 

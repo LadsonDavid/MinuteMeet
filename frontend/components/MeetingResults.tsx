@@ -6,7 +6,7 @@ import { Button } from './ui/Button'
 import { Card } from './ui/Card'
 import { Badge } from './ui/Badge'
 import { ErrorBoundary } from './ErrorBoundary'
-import { ProcessedMeeting, ActionItem } from '@/lib/api'
+import { ProcessedMeeting, ActionItem } from '../lib/api'
 import { 
   getPriorityColor, 
   getHealthScoreColor, 
