@@ -157,10 +157,12 @@ export function MeetingProcessor({ onMeetingProcessed, onProcessingStart, isProc
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.3 }}
               >
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <label htmlFor="meeting-title" className="block text-sm font-semibold text-gray-700 mb-3">
                   Meeting Title
                 </label>
                 <Input
+                  id="meeting-title"
+                  name="meeting-title"
                   type="text"
                   value={formData.title}
                   onChange={(e) => handleInputChange('title', e.target.value)}
@@ -175,10 +177,12 @@ export function MeetingProcessor({ onMeetingProcessed, onProcessingStart, isProc
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <label htmlFor="meeting-type" className="block text-sm font-semibold text-gray-700 mb-3">
                   Meeting Type
                 </label>
                 <Select
+                  id="meeting-type"
+                  name="meeting-type"
                   value={formData.meetingType}
                   onChange={(e) => handleInputChange('meetingType', e.target.value)}
                 >
@@ -197,11 +201,13 @@ export function MeetingProcessor({ onMeetingProcessed, onProcessingStart, isProc
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.5 }}
             >
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label htmlFor="participant-input" className="block text-sm font-semibold text-gray-700 mb-3">
                 Participants
               </label>
               <div className="flex gap-2 mb-3">
                 <Input
+                  id="participant-input"
+                  name="participant-input"
                   type="text"
                   value={participantInput}
                   onChange={(e) => setParticipantInput(e.target.value)}
@@ -255,11 +261,13 @@ export function MeetingProcessor({ onMeetingProcessed, onProcessingStart, isProc
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.6 }}
               >
-                <label className="block text-sm font-semibold text-gray-700 mb-3">
+                <label htmlFor="meeting-duration" className="block text-sm font-semibold text-gray-700 mb-3">
                   Duration
                 </label>
                 <div className="relative">
                   <Input
+                    id="meeting-duration"
+                    name="meeting-duration"
                     type="number"
                     value={formData.duration}
                     onChange={(e) => handleInputChange('duration', parseInt(e.target.value))}
@@ -300,10 +308,12 @@ export function MeetingProcessor({ onMeetingProcessed, onProcessingStart, isProc
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8 }}
             >
-              <label className="block text-sm font-semibold text-gray-700 mb-3">
+              <label htmlFor="meeting-transcript" className="block text-sm font-semibold text-gray-700 mb-3">
                 Meeting Transcript
               </label>
               <Textarea
+                id="meeting-transcript"
+                name="meeting-transcript"
                 value={formData.transcript}
                 onChange={(e) => handleInputChange('transcript', e.target.value)}
                 placeholder="Paste your meeting transcript here..."
