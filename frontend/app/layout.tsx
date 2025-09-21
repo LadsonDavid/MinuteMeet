@@ -23,8 +23,12 @@ export const metadata: Metadata = {
     ]
   },
   manifest: '/site.webmanifest',
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
   themeColor: '#3b82f6',
-  viewport: 'width=device-width, initial-scale=1',
 }
 
 export default function RootLayout({

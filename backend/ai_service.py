@@ -16,9 +16,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 class MeetingAI:
     def __init__(self, use_gpu: bool = True):
-        """
-        Initialize MeetingAI service with world-class models for 97%+ accuracy
-        """
+    
         # Enable GPU usage when available
         self.device = "cuda" if use_gpu and torch.cuda.is_available() else "cpu"
         # Force real AI mode - no mock data for production
