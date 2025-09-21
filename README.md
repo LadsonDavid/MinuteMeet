@@ -67,6 +67,20 @@ npm run dev
 - **Real-time Processing**: Fast 2-3 second processing time
 - **Professional UI**: Modern, responsive interface with shadcn/ui components
 
+### File Processing
+- **PDF Support**: Extract text from PDF documents with PyPDF2
+- **Word Documents**: Process DOCX and DOC files with python-docx
+- **Excel Files**: Extract data from XLSX and XLS spreadsheets
+- **Text Files**: Support for TXT, SRT, VTT, and JSON formats
+- **Audio/Video**: Placeholder support for future audio/video processing
+- **File Upload**: Drag-and-drop interface with file validation
+
+### Integration Features
+- **Google Calendar**: OAuth 2.0 integration for meeting data
+- **Webhook Support**: Ready for meeting platform integrations
+- **API Endpoints**: RESTful API for external integrations
+- **Export Options**: JSON, CSV, and TXT export formats
+
 ### Enterprise Features
 - **Production Ready**: Professional codebase with comprehensive error handling
 - **Scalable Architecture**: Handles 100+ concurrent users
@@ -79,11 +93,19 @@ npm run dev
 
 ### Core Endpoints
 - `POST /api/meetings/process` - Process meeting transcript with AI
+- `POST /api/meetings/upload` - Upload and process files (PDF, DOCX, etc.)
 - `GET /api/meetings` - List all meetings with pagination
 - `GET /api/meetings/{id}` - Get specific meeting details
+- `GET /api/meetings/supported-formats` - Get supported file formats
 - `GET /api/action-items` - List all action items
 - `POST /api/action-items` - Create new action item
 - `PUT /api/action-items/{id}` - Update action item status
+
+### Integration Endpoints
+- `POST /api/auth/google/authorize` - Initiate Google OAuth flow
+- `POST /api/auth/google/callback` - Handle Google OAuth callback
+- `GET /api/calendar/events` - Get calendar events (requires OAuth)
+- `POST /api/webhooks/google-meet` - Google Meet webhook handler
 
 ### Health & Monitoring
 - `GET /health` - System health check
@@ -92,7 +114,7 @@ npm run dev
 
 ### Example API Usage
 ```bash
-# Process a meeting
+# Process a meeting transcript
 curl -X POST "http://localhost:8000/api/meetings/process" \
   -H "Content-Type: application/json" \
   -d '{
@@ -101,6 +123,15 @@ curl -X POST "http://localhost:8000/api/meetings/process" \
     "meeting_type": "executive",
     "duration": 30
   }'
+
+# Upload and process a PDF file
+curl -X POST "http://localhost:8000/api/meetings/upload" \
+  -F "file=@meeting_notes.pdf" \
+  -F "meeting_type=general" \
+  -F "participants=[\"John\", \"Jane\"]"
+
+# Get supported file formats
+curl -X GET "http://localhost:8000/api/meetings/supported-formats"
 
 # Check system health
 curl -X GET "http://localhost:8000/health"
@@ -130,6 +161,12 @@ curl -X GET "http://localhost:8000/health"
 - **Vectorization**: TF-IDF + scikit-learn
 - **Processing**: PyTorch + NumPy
 - **Custom Algorithms**: Keyword extraction, scoring systems
+
+### Document Processing
+- **PDF**: PyPDF2 for text extraction
+- **Word**: python-docx for DOCX/DOC processing
+- **Excel**: openpyxl for XLSX/XLS processing
+- **Audio/Video**: librosa, speechrecognition, pydub (future)
 
 ## Development
 
@@ -323,13 +360,11 @@ MinuteMeet/
 │   ├── FRONTEND-DEVELOPER-TASKS.md  # Frontend Developer tasks
 │   ├── PROBLEM STATEMENT.md         # Project requirements
 │   ├── PRODUCT-MANAGER-DEPLOYMENT-GUIDE.md # Product Manager guide
-│   ├── PROJECT-STATUS-REPORT.md     # Project status
-│   ├── QA-ENGINEER-TASKS.md         # QA Engineer tasks
 │   └── SETUP.md                     # Setup guide
 ├── scripts/               # Utility scripts
 │   ├── init-db.py        # Database initialization
-│   ├── setup.sh          # Setup script
-│   └── demo-data.json    # Sample data
+│   ├── setup-google-oauth.py # Google OAuth setup helper
+│   └── test-pdf-frontend.py # PDF processing test
 ├── docker-compose.yml     # Docker Compose configuration
 └── README.md             # This file
 ```

@@ -1011,4 +1011,367 @@ print(f'Invalid type status: {response.status_code}')
 
 ---
 
-**URGENT: These fixes are required based on QA report. Please implement immediately!**
+---
+
+## Phase 8: Meeting Integration Backend Features (NEW - 2-3 hours)
+
+### Step 1: File Upload API Endpoints
+```python
+# Add to main.py
+from fastapi import UploadFile, File, Form
+from fastapi.responses import JSONResponse
+import shutil
+import os
+import uuid
+from pathlib import Path
+
+# Create uploads directory
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+@app.post("/api/meetings/upload")
+async def upload_meeting_file(
+    file: UploadFile = File(...),
+    meeting_type: str = Form("general"),
+    participants: str = Form("[]")
+):
+    """Upload and process meeting files (audio/video/transcript)"""
+    try:
+        # Validate file type
+        allowed_types = {
+            'audio': ['.mp3', '.wav', '.m4a', '.aac', '.ogg'],
+            'video': ['.mp4', '.avi', '.mov', '.mkv', '.webm'],
+            'transcript': ['.txt', '.srt', '.vtt', '.json']
+        }
+        
+        file_ext = os.path.splitext(file.filename)[1].lower()
+        file_type = None
+        for category, extensions in allowed_types.items():
+            if file_ext in extensions:
+                file_type = category
+                break
+        
+        if not file_type:
+            return JSONResponse(
+                status_code=400,
+                content={"error": f"Unsupported file type: {file_ext}"}
+            )
+        
+        # Save file
+        file_id = str(uuid.uuid4())
+        file_path = UPLOAD_DIR / f"{file_id}{file_ext}"
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # Process file based on type
+        if file_type in ['audio', 'video']:
+            # Use AI service to convert to transcript
+            transcript = ai_service.process_audio_file(str(file_path))
+        else:
+            # Read transcript file
+            with open(file_path, 'r', encoding='utf-8') as f:
+                transcript = f.read()
+        
+        # Parse participants
+        import json
+        participants_list = json.loads(participants) if participants else []
+        
+        # Process meeting
+        meeting_data = MeetingData(
+            title=file.filename,
+            transcript=transcript,
+            participants=participants_list,
+            meeting_type=meeting_type,
+            duration=60  # Default, can be calculated from file
+        )
+        
+        result = await process_meeting(meeting_data)
+        
+        # Clean up file
+        os.remove(file_path)
+        
+        return result
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"File processing failed: {str(e)}"}
+        )
+```
+
+### Step 2: Webhook Endpoints for Meeting Platforms
+```python
+# Add webhook endpoints for meeting platforms
+@app.post("/api/webhooks/teams")
+async def teams_webhook(payload: dict):
+    """Handle Microsoft Teams meeting webhooks"""
+    try:
+        # Extract meeting data from Teams payload
+        meeting_data = {
+            'title': payload.get('subject', 'Teams Meeting'),
+            'participants': [attendee.get('emailAddress', {}).get('address', '') 
+                           for attendee in payload.get('attendees', [])],
+            'start_time': payload.get('startTime'),
+            'end_time': payload.get('endTime'),
+            'meeting_url': payload.get('joinUrl'),
+            'meeting_type': 'teams'
+        }
+        
+        # Store meeting metadata
+        meeting_id = f"teams_{int(time.time())}"
+        
+        # Return webhook response
+        return {"status": "success", "meeting_id": meeting_id}
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Teams webhook processing failed: {str(e)}"}
+        )
+
+@app.post("/api/webhooks/zoom")
+async def zoom_webhook(payload: dict):
+    """Handle Zoom meeting webhooks"""
+    try:
+        meeting_data = {
+            'title': payload.get('topic', 'Zoom Meeting'),
+            'participants': payload.get('participants', []),
+            'start_time': payload.get('start_time'),
+            'end_time': payload.get('end_time'),
+            'meeting_id': payload.get('id'),
+            'meeting_type': 'zoom'
+        }
+        
+        meeting_id = f"zoom_{payload.get('id', int(time.time()))}"
+        return {"status": "success", "meeting_id": meeting_id}
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Zoom webhook processing failed: {str(e)}"}
+        )
+
+@app.post("/api/webhooks/google-meet")
+async def google_meet_webhook(payload: dict):
+    """Handle Google Meet webhooks via Calendar API"""
+    try:
+        meeting_data = {
+            'title': payload.get('summary', 'Google Meet'),
+            'participants': [attendee.get('email', '') 
+                           for attendee in payload.get('attendees', [])],
+            'start_time': payload.get('start', {}).get('dateTime'),
+            'end_time': payload.get('end', {}).get('dateTime'),
+            'meeting_link': payload.get('hangoutLink'),
+            'meeting_type': 'google_meet'
+        }
+        
+        meeting_id = f"google_{int(time.time())}"
+        return {"status": "success", "meeting_id": meeting_id}
+        
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": f"Google Meet webhook processing failed: {str(e)}"}
+        )
+```
+
+### Step 3: Google Calendar Integration
+```python
+# Add Google Calendar API integration
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
+import json
+
+class GoogleCalendarIntegration:
+    def __init__(self):
+        self.scopes = ['https://www.googleapis.com/auth/calendar.readonly']
+        self.credentials = None
+    
+    def authenticate(self, credentials_file: str):
+        """Authenticate with Google Calendar API"""
+        try:
+            flow = Flow.from_client_secrets_file(
+                credentials_file, 
+                scopes=self.scopes
+            )
+            flow.redirect_uri = 'urn:ietf:wg:oauth:2.0:oob'
+            
+            auth_url, _ = flow.authorization_url(prompt='consent')
+            print(f'Please visit this URL to authorize: {auth_url}')
+            
+            auth_code = input('Enter the authorization code: ')
+            flow.fetch_token(code=auth_code)
+            
+            self.credentials = flow.credentials
+            return True
+        except Exception as e:
+            print(f"Google Calendar authentication failed: {e}")
+            return False
+    
+    def get_meetings(self, start_date: str, end_date: str):
+        """Fetch meetings from Google Calendar"""
+        try:
+            service = build('calendar', 'v3', credentials=self.credentials)
+            
+            events_result = service.events().list(
+                calendarId='primary',
+                timeMin=start_date,
+                timeMax=end_date,
+                singleEvents=True,
+                orderBy='startTime'
+            ).execute()
+            
+            events = events_result.get('items', [])
+            return events
+        except Exception as e:
+            print(f"Failed to fetch Google Calendar events: {e}")
+            return []
+```
+
+### Step 4: Real-time Processing Queue
+```python
+# Add background task processing
+from fastapi import BackgroundTasks
+import asyncio
+from typing import Dict, Any
+
+class MeetingProcessor:
+    def __init__(self):
+        self.processing_queue = asyncio.Queue()
+        self.processing_tasks = {}
+    
+    async def process_meeting_async(self, meeting_data: Dict[str, Any]):
+        """Process meeting in background"""
+        try:
+            # Add to processing queue
+            task_id = str(uuid.uuid4())
+            self.processing_tasks[task_id] = {
+                'status': 'processing',
+                'started_at': time.time(),
+                'meeting_data': meeting_data
+            }
+            
+            # Process with AI service
+            result = await self.ai_service.process_meeting(meeting_data)
+            
+            # Update task status
+            self.processing_tasks[task_id].update({
+                'status': 'completed',
+                'result': result,
+                'completed_at': time.time()
+            })
+            
+            return task_id
+            
+        except Exception as e:
+            self.processing_tasks[task_id].update({
+                'status': 'failed',
+                'error': str(e),
+                'failed_at': time.time()
+            })
+            raise e
+    
+    async def get_processing_status(self, task_id: str):
+        """Get status of background processing task"""
+        return self.processing_tasks.get(task_id, {'status': 'not_found'})
+
+# Add to main.py
+processor = MeetingProcessor()
+
+@app.post("/api/meetings/process-async")
+async def process_meeting_async(
+    meeting_data: MeetingData,
+    background_tasks: BackgroundTasks
+):
+    """Process meeting asynchronously"""
+    task_id = await processor.process_meeting_async(meeting_data.dict())
+    return {"task_id": task_id, "status": "processing"}
+
+@app.get("/api/meetings/status/{task_id}")
+async def get_processing_status(task_id: str):
+    """Get processing status"""
+    status = await processor.get_processing_status(task_id)
+    return status
+```
+
+### Step 5: Enhanced Database Models
+```python
+# Add to database.py
+class MeetingIntegration(Base):
+    __tablename__ = "meeting_integrations"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    meeting_id = Column(String, ForeignKey("meetings.id"))
+    platform = Column(String)  # 'teams', 'zoom', 'google_meet'
+    external_id = Column(String)  # External meeting ID
+    webhook_data = Column(Text)  # Raw webhook payload
+    created_at = Column(DateTime, default=func.now())
+    
+    meeting = relationship("Meeting", back_populates="integrations")
+
+class FileUpload(Base):
+    __tablename__ = "file_uploads"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    meeting_id = Column(String, ForeignKey("meetings.id"))
+    filename = Column(String)
+    file_type = Column(String)  # 'audio', 'video', 'transcript'
+    file_size = Column(Integer)
+    file_path = Column(String)
+    processed = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=func.now())
+    
+    meeting = relationship("Meeting", back_populates="file_uploads")
+
+# Update Meeting model
+class Meeting(Base):
+    # ... existing fields ...
+    integrations = relationship("MeetingIntegration", back_populates="meeting")
+    file_uploads = relationship("FileUpload", back_populates="meeting")
+```
+
+### Step 6: Integration Testing
+```bash
+# Test file upload endpoint
+curl -X POST "http://localhost:8000/api/meetings/upload" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@sample_meeting.wav" \
+  -F "meeting_type=general" \
+  -F "participants=[\"john@company.com\", \"sarah@company.com\"]"
+
+# Test webhook endpoints
+curl -X POST "http://localhost:8000/api/webhooks/teams" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "subject": "Q4 Planning Meeting",
+    "attendees": [{"emailAddress": {"address": "john@company.com"}}],
+    "startTime": "2024-01-15T10:00:00Z",
+    "endTime": "2024-01-15T11:00:00Z"
+  }'
+
+# Test async processing
+curl -X POST "http://localhost:8000/api/meetings/process-async" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "title": "Test Meeting",
+    "transcript": "Test transcript content",
+    "participants": ["john@company.com"],
+    "meeting_type": "general",
+    "duration": 60
+  }'
+```
+
+### Success Criteria for Integration Features
+- [ ] File upload API supports audio, video, and transcript files
+- [ ] Webhook endpoints work for Teams, Zoom, Google Meet
+- [ ] Google Calendar integration can fetch meeting data
+- [ ] Async processing handles large files without blocking
+- [ ] Database models support integration metadata
+- [ ] Error handling for all integration scenarios
+- [ ] API responses are consistent and well-documented
+
+---
+
+**NEW: Meeting integration backend features added. Focus on zero-cost solutions!**

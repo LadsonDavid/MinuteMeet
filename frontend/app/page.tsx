@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { MeetingProcessor } from '../components/MeetingProcessor'
 import { MeetingResults } from '../components/MeetingResults'
+import { FileUpload } from '../components/FileUpload'
+import { IntegrationDashboard } from '../components/IntegrationDashboard'
 import { Header } from '../components/Header'
 import { Footer } from '../components/Footer'
 import { LoadingSpinner } from '../components/LoadingSpinner'
@@ -18,20 +20,26 @@ import {
   Clock,
   CheckCircle,
   ArrowRight,
-  Zap
+  Zap,
+  FileText,
+  Upload,
+  Settings
 } from 'lucide-react'
+
+type TabType = 'manual' | 'upload' | 'integrations'
 
 export default function Home() {
   const [meetingData, setMeetingData] = useState<ProcessedMeeting | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [backendStatus, setBackendStatus] = useState<'checking' | 'online' | 'offline'>('checking')
+  const [activeTab, setActiveTab] = useState<TabType>('manual')
 
   useEffect(() => {
     // Check backend health on mount (client-side only)
     const checkBackend = async () => {
       try {
-        const response = await fetch('http://localhost:8000/health')
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/health`)
         if (response.ok) {
           const data = await response.json()
           setBackendStatus('online')
@@ -126,17 +134,114 @@ export default function Home() {
             <AnimatePresence mode="wait">
               {!meetingData ? (
                 <motion.div
-                  key="processor"
+                  key="main-content"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <MeetingProcessor 
-                    onMeetingProcessed={handleMeetingProcessed}
-                    onProcessingStart={handleProcessingStart}
-                    isProcessing={isProcessing}
-                  />
+                  {/* Tab Navigation */}
+                  <div className="mb-8">
+                    <div className="flex flex-wrap justify-center gap-2 p-1 bg-gray-100 rounded-lg">
+                      {[
+                        { id: 'manual', label: 'Manual Input', icon: FileText },
+                        { id: 'upload', label: 'File Upload', icon: Upload },
+                        { id: 'integrations', label: 'Integrations', icon: Settings }
+                      ].map((tab) => (
+                        <button
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id as TabType)}
+                          className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-colors ${
+                            activeTab === tab.id
+                              ? 'bg-white text-blue-600 shadow-sm'
+                              : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'
+                          }`}
+                        >
+                          <tab.icon className="w-4 h-4" />
+                          <span className="font-medium">{tab.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Tab Content */}
+                  <AnimatePresence mode="wait">
+                    {activeTab === 'manual' && (
+                      <motion.div
+                        key="manual"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <MeetingProcessor 
+                          onMeetingProcessed={handleMeetingProcessed}
+                          onProcessingStart={handleProcessingStart}
+                          isProcessing={isProcessing}
+                        />
+                      </motion.div>
+                    )}
+
+                    {activeTab === 'upload' && (
+                      <motion.div
+                        key="upload"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <FileUpload 
+                          onFileUpload={async (file, type) => {
+                            try {
+                              // File uploaded for processing
+                              setIsProcessing(true)
+                              
+                              // Create FormData for file upload
+                              const formData = new FormData()
+                              formData.append('file', file)
+                              formData.append('meeting_type', 'general')
+                              formData.append('participants', JSON.stringify(['User']))
+                              
+                              // Upload file to backend
+                              const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/meetings/upload`, {
+                                method: 'POST',
+                                body: formData
+                              })
+                              
+                              if (response.ok) {
+                                const result = await response.json()
+                                // File processed successfully
+                                handleMeetingProcessed(result)
+                              } else {
+                                const error = await response.json()
+                                console.error('File processing failed:', error)
+                                alert(`File processing failed: ${error.error || 'Unknown error'}`)
+                              }
+                            } catch (error) {
+                              console.error('File upload error:', error)
+                              alert(`File upload failed: ${error.message || 'Unknown error'}`)
+                            } finally {
+                              setIsProcessing(false)
+                            }
+                          }}
+                          isProcessing={isProcessing}
+                        />
+                      </motion.div>
+                    )}
+
+
+                    {activeTab === 'integrations' && (
+                      <motion.div
+                        key="integrations"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <IntegrationDashboard />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </motion.div>
               ) : (
                 <motion.div

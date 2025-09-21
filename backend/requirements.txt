@@ -12,12 +12,29 @@ sentence-transformers
 scikit-learn
 numpy
 
+# Audio/Video Processing (GPU Optimized)
+librosa
+speechrecognition
+pydub
+webrtcvad
+
+# Document Processing
+PyPDF2
+python-docx
+openpyxl
+
 # Database
 sqlalchemy
 psycopg2-binary
 
 # Environment & Config
 python-dotenv
+
+# Google OAuth
+google-auth
+google-auth-oauthlib
+google-auth-httplib2
+google-api-python-client
 
 # Testing
 pytest

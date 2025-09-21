@@ -1,8 +1,10 @@
-from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Float, Boolean
+from sqlalchemy import create_engine, Column, Integer, String, Text, DateTime, Float, Boolean, ForeignKey
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.sql import func
 from datetime import datetime
 import os
+import uuid
 
 # Database configuration - Use PostgreSQL for both development and production
 # Development: Docker Compose provides postgresql://postgres:password@db:5432/minutemeet
@@ -16,7 +18,8 @@ def get_database_url():
         return os.getenv("DATABASE_URL")
     
     # Try PostgreSQL for local development
-    postgres_url = "postgresql://postgres:password@localhost:5432/minutemeet"
+    postgres_password = os.getenv("POSTGRES_PASSWORD", "password")
+    postgres_url = f"postgresql://postgres:{postgres_password}@localhost:5432/minutemeet"
     try:
         # Test PostgreSQL connection
         test_engine = create_engine(postgres_url)
@@ -54,6 +57,11 @@ class Meeting(Base):
     next_steps = Column(Text)  # JSON string
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships for integrations
+    integrations = relationship("MeetingIntegration", back_populates="meeting")
+    file_uploads = relationship("FileUpload", back_populates="meeting")
+    processing_tasks = relationship("ProcessingTask", back_populates="meeting")
 
 class ActionItem(Base):
     __tablename__ = "action_items"
@@ -67,6 +75,49 @@ class ActionItem(Base):
     status = Column(String, default="pending")
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+# Enhanced Database Models for Meeting Integrations
+
+class MeetingIntegration(Base):
+    __tablename__ = "meeting_integrations"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    meeting_id = Column(String, ForeignKey("meetings.id"))
+    platform = Column(String)  # 'teams', 'zoom', 'google_meet'
+    external_id = Column(String)  # External meeting ID
+    webhook_data = Column(Text)  # Raw webhook payload
+    created_at = Column(DateTime, server_default=func.now())
+    
+    meeting = relationship("Meeting", back_populates="integrations")
+
+class FileUpload(Base):
+    __tablename__ = "file_uploads"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    meeting_id = Column(String, ForeignKey("meetings.id"))
+    filename = Column(String)
+    file_type = Column(String)  # 'audio', 'video', 'transcript'
+    file_size = Column(Integer)
+    file_path = Column(String)
+    processed = Column(Boolean, default=False)
+    created_at = Column(DateTime, server_default=func.now())
+    
+    meeting = relationship("Meeting", back_populates="file_uploads")
+
+class ProcessingTask(Base):
+    __tablename__ = "processing_tasks"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    meeting_id = Column(String, ForeignKey("meetings.id"))
+    task_type = Column(String)  # 'async_processing', 'file_upload', 'webhook'
+    status = Column(String, default="pending")  # 'pending', 'processing', 'completed', 'failed'
+    started_at = Column(DateTime)
+    completed_at = Column(DateTime)
+    error_message = Column(Text)
+    result_data = Column(Text)  # JSON string
+    created_at = Column(DateTime, server_default=func.now())
+    
+    meeting = relationship("Meeting", back_populates="processing_tasks")
 
 # Database dependency
 def get_db():
@@ -86,5 +137,4 @@ def test_connection():
         engine.connect()
         return True
     except Exception as e:
-        print(f" Database connection failed: {e}")
         return False

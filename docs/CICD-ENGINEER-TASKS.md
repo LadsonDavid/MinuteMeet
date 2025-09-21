@@ -917,4 +917,308 @@ vercel --prod  # for frontend
 
 ---
 
+---
+
+## Phase 8: Meeting Integration Deployment (NEW - 1-2 hours)
+
+### Step 1: File Upload Infrastructure
+```bash
+# Add file upload support to Railway backend
+# Update requirements.txt with file processing libraries
+cd backend
+echo "librosa==0.10.1" >> requirements.txt
+echo "speechrecognition==3.10.0" >> requirements.txt
+echo "pydub==0.25.1" >> requirements.txt
+echo "webrtcvad==2.0.10" >> requirements.txt
+
+# Update Railway configuration for file uploads
+cat > railway.json << 'EOF'
+{
+  "deploy": {
+    "startCommand": "uvicorn main:app --host 0.0.0.0 --port $PORT",
+    "healthcheckPath": "/health",
+    "healthcheckTimeout": 100,
+    "restartPolicyType": "ON_FAILURE",
+    "restartPolicyMaxRetries": 10
+  },
+  "build": {
+    "builder": "NIXPACKS"
+  }
+}
+EOF
+```
+
+### Step 2: Webhook Configuration
+```bash
+# Set up webhook endpoints for meeting platforms
+# Add environment variables for webhook security
+cat > .env.production << 'EOF'
+# Meeting Integration Settings
+WEBHOOK_SECRET_TEAMS=your_teams_webhook_secret
+WEBHOOK_SECRET_ZOOM=your_zoom_webhook_secret
+WEBHOOK_SECRET_GOOGLE=your_google_webhook_secret
+
+# File Upload Settings
+MAX_FILE_SIZE=100MB
+UPLOAD_DIR=/tmp/uploads
+ALLOWED_AUDIO_TYPES=mp3,wav,m4a,aac,ogg
+ALLOWED_VIDEO_TYPES=mp4,avi,mov,mkv,webm
+ALLOWED_TRANSCRIPT_TYPES=txt,srt,vtt,json
+
+# Google Calendar Integration
+GOOGLE_CREDENTIALS_FILE=/app/credentials.json
+GOOGLE_CALENDAR_ID=primary
+EOF
+```
+
+### Step 3: Frontend Integration Deployment
+```bash
+# Update Vercel configuration for file uploads
+cd frontend
+cat > vercel.json << 'EOF'
+{
+  "functions": {
+    "app/api/upload/route.ts": {
+      "maxDuration": 30
+    }
+  },
+  "headers": [
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Access-Control-Allow-Origin",
+          "value": "*"
+        },
+        {
+          "key": "Access-Control-Allow-Methods",
+          "value": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        {
+          "key": "Access-Control-Allow-Headers",
+          "value": "Content-Type, Authorization"
+        }
+      ]
+    }
+  ]
+}
+EOF
+```
+
+### Step 4: Database Schema Updates
+```bash
+# Add integration tables to database
+cd backend
+cat > migrations/add_integrations.sql << 'EOF'
+-- Meeting Integrations Table
+CREATE TABLE IF NOT EXISTS meeting_integrations (
+    id VARCHAR(255) PRIMARY KEY,
+    meeting_id VARCHAR(255) REFERENCES meetings(id),
+    platform VARCHAR(50) NOT NULL,
+    external_id VARCHAR(255),
+    webhook_data TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- File Uploads Table
+CREATE TABLE IF NOT EXISTS file_uploads (
+    id VARCHAR(255) PRIMARY KEY,
+    meeting_id VARCHAR(255) REFERENCES meetings(id),
+    filename VARCHAR(255) NOT NULL,
+    file_type VARCHAR(50) NOT NULL,
+    file_size INTEGER,
+    file_path VARCHAR(500),
+    processed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Webhook Events Table
+CREATE TABLE IF NOT EXISTS webhook_events (
+    id VARCHAR(255) PRIMARY KEY,
+    platform VARCHAR(50) NOT NULL,
+    event_type VARCHAR(100) NOT NULL,
+    payload TEXT NOT NULL,
+    processed BOOLEAN DEFAULT FALSE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+EOF
+
+# Run migration
+python -c "
+from database import engine
+with open('migrations/add_integrations.sql', 'r') as f:
+    sql = f.read()
+    engine.execute(sql)
+print('Integration tables created successfully')
+"
+```
+
+### Step 5: Webhook Security Setup
+```bash
+# Add webhook signature verification
+cat > backend/webhook_security.py << 'EOF'
+import hmac
+import hashlib
+import json
+from typing import Dict, Any
+
+class WebhookSecurity:
+    @staticmethod
+    def verify_teams_signature(payload: str, signature: str, secret: str) -> bool:
+        """Verify Microsoft Teams webhook signature"""
+        expected_signature = hmac.new(
+            secret.encode('utf-8'),
+            payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(signature, expected_signature)
+    
+    @staticmethod
+    def verify_zoom_signature(payload: str, signature: str, secret: str) -> bool:
+        """Verify Zoom webhook signature"""
+        expected_signature = hmac.new(
+            secret.encode('utf-8'),
+            payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(signature, expected_signature)
+    
+    @staticmethod
+    def verify_google_signature(payload: str, signature: str, secret: str) -> bool:
+        """Verify Google webhook signature"""
+        expected_signature = hmac.new(
+            secret.encode('utf-8'),
+            payload.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        return hmac.compare_digest(signature, expected_signature)
+EOF
+```
+
+### Step 6: Integration Testing Commands
+```bash
+# Test file upload endpoint
+curl -X POST "https://your-backend.railway.app/api/meetings/upload" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@test-meeting.wav" \
+  -F "meeting_type=general" \
+  -F "participants=[\"test@company.com\"]"
+
+# Test webhook endpoints
+curl -X POST "https://your-backend.railway.app/api/webhooks/teams" \
+  -H "Content-Type: application/json" \
+  -H "X-Teams-Signature: your_signature" \
+  -d '{
+    "subject": "Test Meeting",
+    "attendees": [{"emailAddress": {"address": "test@company.com"}}],
+    "startTime": "2024-01-15T10:00:00Z",
+    "endTime": "2024-01-15T11:00:00Z"
+  }'
+
+# Test Google Calendar integration
+curl -X GET "https://your-backend.railway.app/api/calendar/meetings?start=2024-01-01&end=2024-01-31" \
+  -H "Authorization: Bearer your_google_token"
+```
+
+### Step 7: Monitoring and Alerts
+```bash
+# Add integration monitoring
+cat > backend/monitoring.py << 'EOF'
+import logging
+from datetime import datetime, timedelta
+from database import get_db
+from sqlalchemy import text
+
+class IntegrationMonitoring:
+    def __init__(self):
+        self.logger = logging.getLogger(__name__)
+    
+    def check_webhook_health(self):
+        """Check if webhooks are receiving data"""
+        db = next(get_db())
+        try:
+            # Check for recent webhook events
+            recent_events = db.execute(text("""
+                SELECT COUNT(*) as count 
+                FROM webhook_events 
+                WHERE created_at > NOW() - INTERVAL '1 hour'
+            """)).fetchone()
+            
+            if recent_events.count == 0:
+                self.logger.warning("No webhook events received in the last hour")
+                return False
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"Webhook health check failed: {e}")
+            return False
+    
+    def check_file_processing_health(self):
+        """Check if file processing is working"""
+        db = next(get_db())
+        try:
+            # Check for stuck file uploads
+            stuck_uploads = db.execute(text("""
+                SELECT COUNT(*) as count 
+                FROM file_uploads 
+                WHERE processed = FALSE 
+                AND created_at < NOW() - INTERVAL '30 minutes'
+            """)).fetchone()
+            
+            if stuck_uploads.count > 0:
+                self.logger.warning(f"{stuck_uploads.count} file uploads stuck in processing")
+                return False
+            
+            return True
+        except Exception as e:
+            self.logger.error(f"File processing health check failed: {e}")
+            return False
+EOF
+```
+
+### Step 8: Deployment Verification
+```bash
+# Verify all integration features are working
+echo "Testing Meeting Integration Features..."
+
+# Test 1: File Upload
+echo "1. Testing file upload..."
+curl -X POST "https://your-backend.railway.app/api/meetings/upload" \
+  -F "file=@sample.wav" \
+  -F "meeting_type=general" \
+  -F "participants=[]" \
+  -w "HTTP Status: %{http_code}\n"
+
+# Test 2: Webhook Endpoints
+echo "2. Testing webhook endpoints..."
+curl -X POST "https://your-backend.railway.app/api/webhooks/teams" \
+  -H "Content-Type: application/json" \
+  -d '{"test": "data"}' \
+  -w "HTTP Status: %{http_code}\n"
+
+# Test 3: Integration Dashboard
+echo "3. Testing integration dashboard..."
+curl -X GET "https://your-frontend.vercel.app/integrations" \
+  -w "HTTP Status: %{http_code}\n"
+
+# Test 4: Live Recording
+echo "4. Testing live recording endpoint..."
+curl -X GET "https://your-backend.railway.app/api/recording/status" \
+  -w "HTTP Status: %{http_code}\n"
+```
+
+### Success Criteria for Integration Deployment
+- [ ] File upload API handles all supported formats
+- [ ] Webhook endpoints respond to platform events
+- [ ] Google Calendar integration fetches meeting data
+- [ ] Database schema includes integration tables
+- [ ] Security measures protect webhook endpoints
+- [ ] Monitoring tracks integration health
+- [ ] All integration features work in production
+- [ ] Performance meets requirements (< 30s processing)
+
+---
+
+**NEW: Meeting integration deployment features added. Focus on zero-cost solutions!**
+
 **Remember: Deploy in order (Backend → Database → Frontend) and test each step before proceeding!**

@@ -491,4 +491,192 @@ print('Health status:', health)
 
 ---
 
-**URGENT: These fixes are required based on QA report. Please implement immediately!**
+---
+
+## Phase 8: Meeting Integration AI Features (NEW - 2-3 hours)
+
+### Step 1: Audio/Video File Processing
+```python
+# Add to ai_service.py
+import librosa
+import speech_recognition as sr
+from pydub import AudioSegment
+
+class MeetingAI:
+    def __init__(self, use_gpu: bool = True):
+        # ... existing init code ...
+        self.audio_processor = AudioProcessor()
+        self.speech_recognizer = sr.Recognizer()
+    
+    def process_audio_file(self, file_path: str) -> str:
+        """Convert audio file to transcript using free speech recognition"""
+        try:
+            # Convert to WAV if needed
+            audio = AudioSegment.from_file(file_path)
+            wav_path = file_path.replace(file_path.split('.')[-1], 'wav')
+            audio.export(wav_path, format="wav")
+            
+            # Use Google's free speech recognition
+            with sr.AudioFile(wav_path) as source:
+                audio_data = self.speech_recognizer.record(source)
+                transcript = self.speech_recognizer.recognize_google(audio_data)
+            
+            return transcript
+        except Exception as e:
+            print(f"Audio processing error: {e}")
+            return "Error processing audio file"
+    
+    def process_video_file(self, file_path: str) -> str:
+        """Extract audio from video and convert to transcript"""
+        try:
+            # Extract audio from video
+            video = AudioSegment.from_file(file_path)
+            audio_path = file_path.replace(file_path.split('.')[-1], 'wav')
+            video.export(audio_path, format="wav")
+            
+            # Process audio
+            return self.process_audio_file(audio_path)
+        except Exception as e:
+            print(f"Video processing error: {e}")
+            return "Error processing video file"
+```
+
+### Step 2: Real-time Transcription Support
+```python
+# Add WebRTC-based live transcription
+import webrtcvad
+import numpy as np
+
+class LiveTranscription:
+    def __init__(self):
+        self.vad = webrtcvad.Vad(2)  # Aggressiveness level 2
+        self.speech_recognizer = sr.Recognizer()
+        self.is_listening = False
+    
+    def start_listening(self, callback):
+        """Start live transcription with callback"""
+        self.is_listening = True
+        # Implementation for live audio capture
+        pass
+    
+    def stop_listening(self):
+        """Stop live transcription"""
+        self.is_listening = False
+```
+
+### Step 3: Meeting Platform Integration
+```python
+# Add webhook processing for meeting platforms
+class MeetingIntegration:
+    def __init__(self):
+        self.webhook_handlers = {
+            'teams': self.handle_teams_webhook,
+            'zoom': self.handle_zoom_webhook,
+            'google_meet': self.handle_google_meet_webhook
+        }
+    
+    def handle_teams_webhook(self, payload: dict) -> dict:
+        """Process Microsoft Teams meeting webhook"""
+        meeting_data = {
+            'title': payload.get('subject', 'Teams Meeting'),
+            'participants': payload.get('attendees', []),
+            'start_time': payload.get('startTime'),
+            'end_time': payload.get('endTime'),
+            'meeting_url': payload.get('joinUrl')
+        }
+        return meeting_data
+    
+    def handle_zoom_webhook(self, payload: dict) -> dict:
+        """Process Zoom meeting webhook"""
+        meeting_data = {
+            'title': payload.get('topic', 'Zoom Meeting'),
+            'participants': payload.get('participants', []),
+            'start_time': payload.get('start_time'),
+            'end_time': payload.get('end_time'),
+            'meeting_id': payload.get('id')
+        }
+        return meeting_data
+    
+    def handle_google_meet_webhook(self, payload: dict) -> dict:
+        """Process Google Meet webhook"""
+        meeting_data = {
+            'title': payload.get('summary', 'Google Meet'),
+            'participants': payload.get('attendees', []),
+            'start_time': payload.get('start', {}).get('dateTime'),
+            'end_time': payload.get('end', {}).get('dateTime'),
+            'meeting_link': payload.get('hangoutLink')
+        }
+        return meeting_data
+```
+
+### Step 4: Enhanced File Format Support
+```python
+# Add support for various meeting file formats
+class FileProcessor:
+    SUPPORTED_FORMATS = {
+        'audio': ['.mp3', '.wav', '.m4a', '.aac', '.ogg'],
+        'video': ['.mp4', '.avi', '.mov', '.mkv', '.webm'],
+        'transcript': ['.txt', '.srt', '.vtt', '.json']
+    }
+    
+    def process_meeting_file(self, file_path: str) -> dict:
+        """Process any supported meeting file format"""
+        file_ext = os.path.splitext(file_path)[1].lower()
+        
+        if file_ext in self.SUPPORTED_FORMATS['audio']:
+            transcript = self.process_audio_file(file_path)
+        elif file_ext in self.SUPPORTED_FORMATS['video']:
+            transcript = self.process_video_file(file_path)
+        elif file_ext in self.SUPPORTED_FORMATS['transcript']:
+            transcript = self.process_transcript_file(file_path)
+        else:
+            raise ValueError(f"Unsupported file format: {file_ext}")
+        
+        return {
+            'transcript': transcript,
+            'file_type': self.get_file_type(file_ext),
+            'processed_at': time.time()
+        }
+```
+
+### Step 5: Integration Testing
+```bash
+# Test audio file processing
+python -c "
+from ai_service import MeetingAI
+ai = MeetingAI(use_gpu=False)
+
+# Test with sample audio (if available)
+# transcript = ai.process_audio_file('sample_meeting.wav')
+# print('Audio transcript:', transcript[:100] + '...')
+print('Audio processing module loaded successfully')
+"
+
+# Test webhook processing
+python -c "
+from ai_service import MeetingIntegration
+integration = MeetingIntegration()
+
+# Test Teams webhook
+teams_payload = {
+    'subject': 'Q4 Planning Meeting',
+    'attendees': ['john@company.com', 'sarah@company.com'],
+    'startTime': '2024-01-15T10:00:00Z',
+    'endTime': '2024-01-15T11:00:00Z'
+}
+meeting_data = integration.handle_teams_webhook(teams_payload)
+print('Teams webhook processed:', meeting_data)
+"
+```
+
+### Success Criteria for Integration Features
+- [ ] Audio files (MP3, WAV, M4A) can be processed to transcript
+- [ ] Video files (MP4, AVI, MOV) can be processed to transcript
+- [ ] Webhook handlers work for Teams, Zoom, Google Meet
+- [ ] File processing completes in < 30 seconds for 1-hour meeting
+- [ ] Error handling for unsupported formats
+- [ ] Integration with existing AI processing pipeline
+
+---
+
+**NEW: Meeting integration features added. Focus on zero-cost solutions!**
